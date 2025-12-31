@@ -166,4 +166,139 @@
         </div>
     </div>
     <div class="info-box-wide">
-        <span
+        <span id="weather-icon">☀️</span>
+        <div>
+            <div class="info-label">今日日子</div>
+            <div id="info-day" class="info-value">正在讀取...</div>
+        </div>
+    </div>
+</div>
+
+<div id="chat-area">
+    <div id="loading">✨ 智友伴諗緊點同你講...</div>
+    <div id="chat-bubble" class="message">
+        老友記，早晨！我是你的智友伴。不如對一對今日係幾時，或者問下我天氣？
+    </div>
+</div>
+
+<footer>
+    <button class="big-btn" onclick="startRealityOrientation()">🗓️ 今日幾月幾號？</button>
+    <button class="big-btn" onclick="checkWeather()">☀️ 今日天氣點呀？</button>
+    <button class="big-btn" onclick="getFestival()">🧧 就嚟咩節日？</button>
+</footer>
+
+<script>
+    const synth = window.speechSynthesis;
+    let voices = [];
+
+    function loadVoices() {
+        voices = synth.getVoices();
+    }
+    loadVoices();
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function speak(text) {
+        if (!synth) return;
+        synth.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        const cantoneseVoice = voices.find(v => v.lang.includes('HK') || v.lang.includes('yue'));
+        if (cantoneseVoice) utter.voice = cantoneseVoice;
+        utter.lang = 'zh-HK';
+        utter.rate = 0.85;
+        utter.pitch = 1.0;
+        utter.onerror = (e) => console.error("Speech error:", e);
+        synth.speak(utter);
+    }
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('info-time').innerText = now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false });
+        document.getElementById('info-date').innerText = `${now.getMonth() + 1}月${now.getDate()}日`;
+        const dayNames = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+        document.getElementById('info-day').innerText = dayNames[now.getDay()];
+    }
+
+    // 更新後的自動判斷下一個節日邏輯
+    function getNextFestival() {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        
+        // 設定節日時間表 (月份從0開始計，1月是0，7月是6，10月是9)
+        const festivals = [
+            { name: "農曆新年", month: 0, day: 29, desc: "到時周圍都好熱鬧，最緊要同屋企人開開心心食頓飯。" },
+            { name: "清明節", month: 3, day: 4, desc: "係慎終追遠嘅日子，亦都係春天踏青嘅好時機。" },
+            { name: "端午節", month: 5, day: 10, desc: "到時可以食粽，仲可以去睇龍舟比賽呀。" },
+            { name: "香港回歸紀念日", month: 6, day: 1, desc: "係慶祝香港回歸嘅日子，周圍都有好多慶祝活動㗎。" },
+            { name: "中秋節", month: 8, day: 17, desc: "係人月兩團圓嘅日子，記得一齊賞月同食月餅。" },
+            { name: "國慶節", month: 9, day: 1, desc: "係慶祝國家生日嘅大日子，到時維港仲會有煙花睇添。" },
+            { name: "重陽節", month: 9, day: 11, desc: "係登高遠眺嘅日子，記得注意安全，慢慢行。" },
+            { name: "冬至", month: 11, day: 21, desc: "冬至大過年，最緊要一家人齊齊整整食餐飯。" },
+            { name: "聖誕節", month: 11, day: 25, desc: "周圍都有好多燈飾好靚，係充滿平安同喜樂嘅日子。" }
+        ];
+
+        for (let fest of festivals) {
+            const festDate = new Date(currentYear, fest.month, fest.day);
+            if (now < festDate) {
+                return `就快到 ${fest.name} 喇！${fest.desc}`;
+            }
+        }
+        
+        return "就快過年喇！祝你新嘅一年身體健康，開開心心。";
+    }
+
+    async function showAiReply(type) {
+        const loading = document.getElementById('loading');
+        const bubble = document.getElementById('chat-bubble');
+        
+        loading.style.display = 'block';
+        bubble.innerText = "...";
+        
+        await new Promise(res => setTimeout(res, 800));
+        
+        loading.style.display = 'none';
+        
+        const now = new Date();
+        const careTips = [
+            "記住飲多啲暖水呀，對身體好。",
+            "今日心情好，個人都精神啲，笑多啲啦！",
+            "如果想去散步，記得帶支水喺身。"
+        ];
+        const randomTip = careTips[Math.floor(Math.random() * careTips.length)];
+
+        let resultText = "";
+
+        if (type === 'date') {
+            const days = ["日","一","二","三","四","五","六"];
+            resultText = `今日係 ${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日，星期${days[now.getDay()]}。${randomTip}`;
+        } else if (type === 'weather') {
+            resultText = `今日出面大約 21 度，天氣幾舒服。唔太凍都唔太熱，最啱出去行下。`;
+        } else if (type === 'festival') {
+            resultText = getNextFestival();
+        }
+
+        bubble.innerText = resultText;
+        speak(resultText);
+    }
+
+    function startRealityOrientation() { showAiReply('date'); }
+    function checkWeather() { showAiReply('weather'); }
+    function getFestival() { showAiReply('festival'); }
+
+    window.onload = () => {
+        updateClock();
+        setInterval(updateClock, 10000);
+        
+        const unlockSpeech = () => {
+            const utter = new SpeechSynthesisUtterance("");
+            synth.speak(utter);
+            document.removeEventListener('touchstart', unlockSpeech);
+            document.removeEventListener('click', unlockSpeech);
+        };
+        document.addEventListener('touchstart', unlockSpeech);
+        document.addEventListener('click', unlockSpeech);
+    };
+</script>
+</body>
+</html>

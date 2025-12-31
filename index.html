@@ -57,30 +57,32 @@
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            max-width: 700px;
+            max-width: 800px;
             margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
         }
 
-        .info-row { display: flex; gap: 10px; width: 100%; }
+        .info-row { display: flex; gap: 12px; width: 100%; }
         
         .info-box {
             background: var(--card-bg);
             border: 3px solid var(--border-black);
             border-radius: 20px;
-            padding: 15px;
+            padding: 20px 15px;
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 12px;
             box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
         }
 
-        .info-label { font-size: 0.9rem; color: #333; font-weight: bold; }
-        .info-value { font-size: 1.8rem; font-weight: 900; }
-        .icon-large { font-size: 2rem; }
+        .info-label { font-size: 1rem; color: #333; font-weight: bold; margin-bottom: 4px; }
+        /* 放大字體：時間與日期 */
+        .info-value { font-size: 2.2rem; font-weight: 900; line-height: 1.2; }
+        .date-detail { font-size: 1.2rem; font-weight: 900; display: block; }
+        .icon-large { font-size: 2.5rem; }
 
         #chat-area {
             flex-grow: 1;
@@ -190,7 +192,8 @@
             <span class="icon-large">📅</span>
             <div>
                 <div class="info-label">日期</div>
-                <div id="info-date" class="info-value">--/--</div>
+                <div id="info-date" class="info-value">--月--日</div>
+                <div id="info-year-week" class="date-detail">----年 (---)</div>
             </div>
         </div>
     </div>
@@ -210,9 +213,8 @@
     </div>
     <div class="action-grid">
         <button id="voice-trigger" class="big-btn voice-btn">🎙️ <span>撳住同我傾計 / 講嘢</span></button>
-        <button class="big-btn" onclick="handleAction('date')">🗓️ 今日幾號</button>
         <button class="big-btn" onclick="handleAction('weather')">☀️ 今日天氣點呀</button>
-        <button class="big-btn" onclick="handleAction('festival')" style="grid-column: span 2;">🧧 嚟緊咩節日</button>
+        <button class="big-btn" onclick="handleAction('festival')">🧧 嚟緊咩節日</button>
     </div>
 </footer>
 
@@ -300,29 +302,31 @@
 
     function updateClock() {
         const now = new Date();
+        const days = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
+        
+        // 更新時間
         document.getElementById('info-time').innerText = now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false });
+        
+        // 更新日期
         document.getElementById('info-date').innerText = `${now.getMonth() + 1}月${now.getDate()}日`;
+        document.getElementById('info-year-week').innerText = `${now.getFullYear()}年 (${days[now.getDay()]})`;
     }
 
-    // 農曆計算邏輯 (近似算法，確保主要節日自動對應)
     function getNextFestival(date) {
         const year = date.getFullYear();
-        
-        // 公曆固定節日
         const festivals = [
             { name: "7月1日回歸紀念日", month: 7, day: 1, custom: "係香港回歸祖國嘅日子，周圍都有慶祝活動。" },
             { name: "10月1日國慶", month: 10, day: 1, custom: "慶祝國慶，夜晚通常有煙花匯演。" },
             { name: "聖誕節", month: 12, day: 25, custom: "周圍都有靚燈飾，可以同親友開大餐。" }
         ];
 
-        // 核心農曆節日 (基於年份的簡易數據對照表，用於永久自動對應)
         const lunarData = {
             2024: { cny: [2, 10], qm: [4, 4], db: [6, 10], ma: [9, 17], cy: [10, 11], wz: [12, 21] },
             2025: { cny: [1, 29], qm: [4, 4], db: [5, 31], ma: [10, 6], cy: [10, 29], wz: [12, 21] },
             2026: { cny: [2, 17], qm: [4, 5], db: [6, 19], ma: [9, 25], cy: [10, 18], wz: [12, 22] }
         };
 
-        const currentYearData = lunarData[year] || lunarData[2025]; // 默認或動態擴展
+        const currentYearData = lunarData[year] || lunarData[2025];
         
         festivals.push(
             { name: "農曆新年", month: currentYearData.cny[0], day: currentYearData.cny[1], custom: "記得要大掃除同貼揮春，一家人食團年飯。" },
@@ -337,7 +341,7 @@
         festivals.sort((a, b) => (a.month * 100 + a.day) - (b.month * 100 + b.day));
         
         let next = festivals.find(f => (f.month * 100 + f.day) >= todayNum);
-        if (!next) next = festivals[0]; // 如果今年過完了，就是明年的第一個
+        if (!next) next = festivals[0];
 
         return next;
     }
@@ -346,12 +350,7 @@
         const now = new Date();
         updateClock();
 
-        if (type === 'date') {
-            const days = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
-            const res = `今日係 ${now.getFullYear()}年 ${now.getMonth()+1}月 ${now.getDate()}號，${days[now.getDay()]}。`;
-            addMessage('bot', res);
-        } 
-        else if (type === 'weather') {
+        if (type === 'weather') {
             try {
                 const res = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
                 const data = await res.json();
@@ -407,7 +406,7 @@
         setInterval(updateClock, 1000);
         loadVoices();
         const timeGreet = getTimeOfDay();
-        document.getElementById('chat-bubble').innerText = `老友記，${timeGreet}！今日想知幾號、睇天氣，定係想同我傾下計？`;
+        document.getElementById('chat-bubble').innerText = `老友記，${timeGreet}！今日想睇天氣，定係想同我傾下計？`;
     };
     
     document.getElementById('user-input').addEventListener('keypress', (e) => {

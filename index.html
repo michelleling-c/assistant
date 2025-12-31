@@ -213,19 +213,19 @@
         document.getElementById('info-date').innerText = `${now.getMonth() + 1}月${now.getDate()}日`;
     }
 
-    // 天文台圖示代碼對應
+    // 精確的天文台圖示代碼對應
     function getWeatherDesc(iconCode) {
-        if (iconCode >= 50 && iconCode <= 54) return "有雨";
-        if (iconCode >= 60 && iconCode <= 65) return "大雨或雷暴";
+        // 參考 HKO 官方代碼
+        if (iconCode >= 50 && iconCode <= 65) return "有雨";
         if (iconCode >= 70 && iconCode <= 77) return "多雲";
-        if (iconCode >= 80 && iconCode <= 84) return "天晴";
-        if (iconCode >= 90) return "乾燥";
+        if (iconCode >= 80 && iconCode <= 85) return "天晴";
+        if (iconCode >= 90 && iconCode <= 93) return "天氣乾燥";
         return "大致多雲";
     }
 
     async function fetchHKOWeather() {
         try {
-            // 1. 獲取即時天氣 (氣溫、濕度、天氣圖示)
+            // 1. 獲獲取即時天氣
             const weatherRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
             const weatherData = await weatherRes.json();
             
@@ -233,6 +233,7 @@
             const warnRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc');
             const warnData = await warnRes.json();
 
+            // 取得各項數據
             const temp = weatherData.temperature.data[0].value;
             const humidity = weatherData.humidity.data[0].value;
             const icon = weatherData.icon[0];
@@ -240,24 +241,30 @@
 
             // 解析警告信號
             let warnings = [];
-            for (let key in warnData) {
-                warnings.push(warnData[key].name);
+            if (warnData) {
+                for (let key in warnData) {
+                    if (warnData[key] && warnData[key].name) {
+                        warnings.push(warnData[key].name);
+                    }
+                }
             }
             let warningText = warnings.length > 0 ? `而家生效緊嘅信號有：${warnings.join('、')}。` : "目前冇特別天氣信號生效。";
 
             // 生成長者關懷建議
-            let advice = "天氣唔錯。";
-            if (temp < 15) advice = "今日好凍呀，老友記記得著多件厚棉襖，帶定頸巾呀。";
-            else if (temp > 28) advice = "出面好熱呀，老友記記得帶支水，唔好中暑呀。";
+            let advice = "";
+            if (temp < 15) advice = "今日好凍呀，老友記記得著多件厚棉襖呀。";
+            else if (temp > 28) advice = "出面好熱呀，老友記記得飲多啲水。";
+            else advice = "天氣幾舒服，啱晒出去行下。";
             
-            if (humidity > 85) advice += " 濕度好高，地下可能會滑，行路要小心啲。";
-            else if (humidity < 40) advice += " 天氣好乾燥，記得查潤膚膏呀。";
+            if (humidity > 85) advice += " 不過濕度好高，地下可能會有啲滑，行路要小心啲。";
+            else if (humidity < 40) advice += " 天氣好乾燥，記得查潤膚膏。";
             
-            if (weatherCondition.includes("雨")) advice += " 出街記得帶返把傘呀。";
+            if (weatherCondition.includes("雨")) advice += " 出街記得帶返把傘，以防萬一。";
 
             return `報告老友記：而家氣溫 ${temp} 度，濕度百分之 ${humidity}。天氣 ${weatherCondition}。${warningText}${advice}`;
         } catch (e) {
-            return "暫時問唔到天文台，不過睇個天好似幾好，記得著夠衫呀。";
+            console.error("Weather Fetch Error:", e);
+            return "暫時連唔到天文台，不過睇個天好似幾好，記得著夠衫呀。";
         }
     }
 
@@ -277,8 +284,7 @@
         } else if (type === 'weather') {
             reply = await fetchHKOWeather();
         } else if (type === 'festival') {
-            const now = new Date();
-            reply = "就快過年喇！祝你身體健康，開開心心。"; // 簡化版
+            reply = "就快過年喇！祝你身體健康，開開心心。";
         }
 
         loading.style.display = 'none';

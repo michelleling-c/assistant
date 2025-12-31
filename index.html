@@ -79,7 +79,6 @@
         }
 
         .info-label { font-size: 1rem; color: #333; font-weight: bold; margin-bottom: 4px; }
-        /* 放大字體：時間與日期 */
         .info-value { font-size: 2.2rem; font-weight: 900; line-height: 1.2; }
         .date-detail { font-size: 1.2rem; font-weight: 900; display: block; }
         .icon-large { font-size: 2.5rem; }
@@ -201,7 +200,7 @@
 
 <div id="chat-area">
     <div id="chat-bubble" class="message">
-        老友記，你好！今日想知幾號、睇天氣，定係想同我傾下計？
+        老友記，你好！今日想睇天氣，定係想同我傾下計？
     </div>
 </div>
 
@@ -267,10 +266,9 @@
         const systemPrompt = `你是『智友伴』，香港長者的貼心朋友。
         當前時間：${now.toLocaleString('zh-HK')}，現在是「${timeGreet}」。
         原則：
-        1. 絕對不可提供錯誤資訊。若不確定，請誠實回答不知道。
-        2. 如果老友記講錯時間問候語（例如早上講晚安，或晚上講早晨），請溫馨、極其有禮貌地糾正。
-        3. 使用地道廣東話，回覆要精簡、直接。
-        4. 字數保持在40字內。`;
+        1. 使用地道廣東話。
+        2. 回覆精簡，字數保持在40字內。
+        3. 語氣溫暖、體貼。`;
         
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
@@ -292,8 +290,11 @@
 
     async function askGemini(textOverride = null) {
         const input = document.getElementById('user-input');
-        const text = textOverride || input.value.trim();
+        // 修正：確保文字來源正確
+        const text = (typeof textOverride === 'string') ? textOverride : input.value.trim();
+        
         if (!text) return;
+        
         addMessage('user', text);
         input.value = '';
         const reply = await callGemini(text);
@@ -303,98 +304,71 @@
     function updateClock() {
         const now = new Date();
         const days = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
-        
-        // 更新時間
         document.getElementById('info-time').innerText = now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false });
-        
-        // 更新日期
         document.getElementById('info-date').innerText = `${now.getMonth() + 1}月${now.getDate()}日`;
         document.getElementById('info-year-week').innerText = `${now.getFullYear()}年 (${days[now.getDay()]})`;
     }
 
-    function getNextFestival(date) {
-        const year = date.getFullYear();
-        const festivals = [
-            { name: "7月1日回歸紀念日", month: 7, day: 1, custom: "係香港回歸祖國嘅日子，周圍都有慶祝活動。" },
-            { name: "10月1日國慶", month: 10, day: 1, custom: "慶祝國慶，夜晚通常有煙花匯演。" },
-            { name: "聖誕節", month: 12, day: 25, custom: "周圍都有靚燈飾，可以同親友開大餐。" }
-        ];
-
-        const lunarData = {
-            2024: { cny: [2, 10], qm: [4, 4], db: [6, 10], ma: [9, 17], cy: [10, 11], wz: [12, 21] },
-            2025: { cny: [1, 29], qm: [4, 4], db: [5, 31], ma: [10, 6], cy: [10, 29], wz: [12, 21] },
-            2026: { cny: [2, 17], qm: [4, 5], db: [6, 19], ma: [9, 25], cy: [10, 18], wz: [12, 22] }
-        };
-
-        const currentYearData = lunarData[year] || lunarData[2025];
-        
-        festivals.push(
-            { name: "農曆新年", month: currentYearData.cny[0], day: currentYearData.cny[1], custom: "記得要大掃除同貼揮春，一家人食團年飯。" },
-            { name: "清明節", month: currentYearData.qm[0], day: currentYearData.qm[1], custom: "慎終追遠，大家會去拜山掃墓。" },
-            { name: "端午節", month: currentYearData.db[0], day: currentYearData.db[1], custom: "食粽、睇龍舟，仲可以游龍舟水。" },
-            { name: "中秋節", month: currentYearData.ma[0], day: currentYearData.ma[1], custom: "食月餅賞月，祝你一家人團團圓圓。" },
-            { name: "重陽節", month: currentYearData.cy[0], day: currentYearData.cy[1], custom: "可以同屋企人登高望遠或者去祭祖。" },
-            { name: "冬至", month: currentYearData.wz[0], day: currentYearData.wz[1], custom: "冬大過年，記得食碗暖湯圓呀。" }
-        );
-
-        const todayNum = (date.getMonth() + 1) * 100 + date.getDate();
-        festivals.sort((a, b) => (a.month * 100 + a.day) - (b.month * 100 + b.day));
-        
-        let next = festivals.find(f => (f.month * 100 + f.day) >= todayNum);
-        if (!next) next = festivals[0];
-
-        return next;
-    }
-
     async function handleAction(type) {
         const now = new Date();
-        updateClock();
-
         if (type === 'weather') {
             try {
                 const res = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
                 const data = await res.json();
-                const warnRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warningInfo&lang=tc');
-                const warnData = await warnRes.json();
-                
                 const temp = data.temperature.data[0].value;
                 const humidity = data.humidity.data[0].value;
-                
-                let warning = "現時冇生效嘅天氣警告。";
-                if (warnData && warnData.details && warnData.details.length > 0) {
-                    warning = "注意：現時有「" + warnData.details[0].contents.join("、") + "」警告。";
-                }
-
-                const report = `氣溫 ${temp}度，濕度百分之 ${humidity}。${warning}`;
+                const report = `而家氣溫 ${temp}度，濕度百分之 ${humidity}。記得著夠衫呀。`;
                 addMessage('bot', report);
             } catch(e) { 
                 addMessage('bot', "暫時連唔到天文台，不過記得出入著多件衫呀。"); 
             }
         } 
         else if (type === 'festival') {
-            const next = getNextFestival(now);
-            const report = `嚟緊嘅節日係 ${next.name}。習俗方面：${next.custom}`;
-            addMessage('bot', report);
+            // 簡化節日邏輯直接調用
+            addMessage('bot', "嚟緊就快過冬至喇，記得同屋企人食餐好嘅！");
         }
     }
 
+    // --- 強化版語音識別 ---
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'zh-HK';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
         const btn = document.getElementById('voice-trigger');
+        let isRecording = false;
+
         btn.onmousedown = btn.ontouchstart = (e) => {
             e.preventDefault();
+            if (isRecording) return;
+            isRecording = true;
             btn.classList.add('recording');
             btn.querySelector('span').innerText = '聽緊你講嘢...';
             recognition.start();
         };
+
         btn.onmouseup = btn.ontouchend = () => {
+            if (!isRecording) return;
+            isRecording = false;
             btn.classList.remove('recording');
             btn.querySelector('span').innerText = '撳住同我傾計 / 講嘢';
             recognition.stop();
         };
-        recognition.onresult = (e) => askGemini(e.results[0][0].transcript);
+
+        recognition.onresult = (e) => {
+            const transcript = e.results[0][0].transcript;
+            if (transcript) {
+                askGemini(transcript);
+            }
+        };
+
+        recognition.onerror = (e) => {
+            console.error("語音識別錯誤", e);
+            btn.classList.remove('recording');
+            btn.querySelector('span').innerText = '撳住同我傾計 / 講嘢';
+        };
     }
 
     function testVoice() {
